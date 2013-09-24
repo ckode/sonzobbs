@@ -1,0 +1,7 @@
+               ^MWelcome to Sonzo BBS.
+            
+^GSonzo BBS is a Python based BBS with door games support.
+Please join or login and enjoy all that we have to offer.
+
+If you already have a User-ID on this system, type it in
+and press ENTER.  Otherwise, type "^Cnew^G":
