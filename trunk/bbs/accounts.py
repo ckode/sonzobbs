@@ -2,7 +2,7 @@ import logging
 
 
 from sonzoserv.telnet import TelnetProtocol
-from bbs.board import BBSUSERS, parser, splash, sendClient
+from bbs.board import parser, BBSUSERS, splash, sendClient
 from bbs.menu import getFullMenu, getMiniMenu
 
 
@@ -30,6 +30,8 @@ class Account(TelnetProtocol):
         """
         onConnect()
         """
+        # Remove this once login code is complete
+        self.username = self._port
         BBSUSERS.append(self)
         splash(self)
         sendClient(self, getFullMenu(self), colorcodes=True)

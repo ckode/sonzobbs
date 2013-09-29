@@ -4,6 +4,8 @@ import sys
 import time
 import logging
 
+import bbs.board
+
 from collections import deque
 
 
@@ -60,12 +62,12 @@ class Door:
         Process outgoing door messages
         and return incoming door messages.
         """
+        messages = deque()
         self.sendMessages()
         self.recieveMessages()
         if self._in:
-            messages = self._in
+            bbs.board.BBS.handleDoorMessages(self._in)
             self._in.clear()
-            return messages
 
     def sendDoorMessage(self, message):
         """
@@ -216,6 +218,7 @@ class DoorEngine:
         Send message to a door.
         """
         if self.doors[door]:
+            print("Sending message to Door")
             self.doors[door].sendDoorMessage(
                 self.makeUserMessage(user, door, message))
 
@@ -225,11 +228,8 @@ class DoorEngine:
         """
         rep = deque()
         for door in self.doors.values():
-            ret = door.processDoorQueues()
-            if ret:
-                rep.extend(ret)
-        if rep:
-            return rep
+            door.processDoorQueues()
+
         return False
 
     def makeUserMessage(self, user, door, message):

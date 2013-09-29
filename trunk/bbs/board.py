@@ -47,32 +47,33 @@ ANSI_CODES = (
     ( '^.', '\x1b[22m'),        # bold off
     ( '^s', '\x1b[2J'),         # clear screen
     ( '^l', '\x1b[2K'),         # clear to end of line
+    ( '^1UL', '\x1b[1A'),        # Move up 1 line
     )
 
 class SonzoBBS:
     """
     SoznoBBS Class
     """
-    
+
     def __init__(self, config):
         """
         Initalize SonzoBBS Class
         """
         global SPLASH
         global SERVER
-        
+
         self.version = config['version']
         self._bbsname = config['bbsname']
         verifyMenuDatabase()
-        
+
         try:
             with open(os.path.join('data', 'splash.txt'), "r") as fp:
                 SPLASH = fp.read()
         except:
             logging.info(" No Splash screen found.")
             SPLASH = None
-        
-        
+
+
         # Temp stuff to listen for a test door program
         dodoors = True
         if dodoors:
@@ -84,31 +85,59 @@ class SonzoBBS:
             first['IP'] = '*'
             first['ID'] = 'TELECONFERENCE'
             cfgs.append(first)
-            
+
             self.doors = DoorEngine(cfgs)
             if self.doors:
-                # Install the function to process the door messages 
+                # Install the function to process the door messages
                 # into the main loop.
-                SERVER.install(func=self.doors.processDoors) 
-        
-        logging.info(" Sonzo BBS version {}".format(self.version))        
+                SERVER.install(func=self.doors.processDoors)
+
+        logging.info(" Sonzo BBS version {}".format(self.version))
         logging.info(" Listening for connections...  CTRL-C to break.")
         #self.run()
 
-        
+    def processSystemMessage(self, message):
+        """
+        Process SYSTEM door messages
+        """
+        if message['MESSAGE'] == 'DISCONNECT':
+            client = getUser(message['USER'])
+            if client:
+                client.door = None
+                sendClient(client, getFullMenu(client), colorcodes=client.inANSIMode())
 
-        
+
+
+    def handleDoorMessages(self, messages):
+        """
+        Handle messages coming from doors.
+        """
+        global BBSUSERS
+
+        for msg in messages:
+            print(msg)
+            if msg['TYPE'] == 'SYSTEM':
+                print("SYSTEM")
+                self.processSystemMessage(msg)
+            elif msg['TYPE'] == 'USER':
+                for user in BBSUSERS:
+                    if user.username == msg['USER']:
+                        sendClient(user, msg['MESSAGE'])
+                        break
+
+
 def parser(client, line):
     """
     Parse the line.
     """
     global stripchars
-    
+
     # Need to look for global messages before this.
     if client.door:
+        print("DOOR USER")
         BBS.doors.sendDoorMessage(client.username, client.door, line)
         return
-    
+
     line = line.upper()
     line = "".join(filter(lambda x: x in stripchars, line))
     opts = getMenuOptions(client.getMenu())
@@ -129,7 +158,7 @@ def parser(client, line):
                 if BBS.doors.hasDoor(e.message):
                     client.door = e.message
                     BBS.doors.connectUser(client.username, e.message)
-                
+
                 #sendClient(client, '\n^G<= ^MEntering Door ^G=>\n', colorcodes=client.inANSIMode())
                 #sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
                 return
@@ -137,7 +166,6 @@ def parser(client, line):
         sendClient(client, '\n^G<= ^MInvalid selection, please try again. ^G=>\n', colorcodes=client.inANSIMode())
         sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
 
-        
 def splash(client):
     """
     Do splash screen on initial login.
@@ -154,8 +182,8 @@ def strip_caret_codes(text):
     for token, foo in ANSI_CODES:
         text = text.replace(token, '')
     return text.replace('\x00', '^')
-    
-    
+
+
 def colorize(text, ansi=True):
     """
     If the client wants ansi, replace the tokens with ansi sequences --
@@ -169,14 +197,28 @@ def colorize(text, ansi=True):
         text = text.replace('\x00', '^')
     else:
         text = strip_caret_codes(text)
-    return text 
-        
-        
+    return text
+
+
 def sendClient(client, data, **kw):
     """
     Send data to user.
     """
+    if client == None:
+        logging.error(" Account object passed to sendClient was: 'None'")
+        return
+
     if 'colorcodes' in kw.keys():
         client.send(colorize(data, client.inANSIMode()))
     else:
         client.send(data)
+
+def getUser(name):
+    """
+    Return user object from name.
+    """
+    global BBSUSERS
+    for user in BBSUSERS:
+        if user.username == name:
+            return user
+    return None
