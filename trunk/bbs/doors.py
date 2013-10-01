@@ -24,6 +24,9 @@ class Door:
         self._ip = config['IP']
         self._port = config['PORT']
         self._id = config['ID']
+        self.connected = False
+        self.lastMessage = 0
+        self.lastHeartbeat = 0
         self.sock = None
 
         self.HEARTBEAT = {'TYPE': 'HEARTBEAT',
@@ -36,7 +39,12 @@ class Door:
                                    'DOOR': '{}'.format(self._name),
                                    'MESSAGE': ""
                                    }
-
+        self.DISCONNECT = {'TYPE': 'DISCONNECT',
+                          'USER': '',
+                          'DOOR': self._id,
+                          'MESSAGE': ""
+                          }
+                          
         try:
             context = zmq.Context()
             self.sock = context.socket(zmq.PAIR)
@@ -54,8 +62,7 @@ class Door:
             self.sendMessages()
             msg = self.recieveMessages()
             if msg:
-                print(msg)
-            time.sleep(1)
+                time.sleep(1)
 
     def processDoorQueues(self):
         """
@@ -68,6 +75,23 @@ class Door:
         if self._in:
             bbs.board.BBS.handleDoorMessages(self._in)
             self._in.clear()
+        elif time.time() - self.lastMessage > 15:
+            if self.connected == True:
+                self._in.append(self.DISCONNECT)
+                self.connected = False
+                return
+        elif time.time() - self.lastMessage > 5:
+            if time.time() - self.lastHeartbeat > 5:
+                self.sendHeartbeat()
+
+
+    def sendHeartbeat(self):
+        """
+        Send a heartbeat message to door.
+        """
+        self.lastHeartbeat = time.time()
+        self.sendDoorMessage(self.HEARTBEAT)
+
 
     def sendDoorMessage(self, message):
         """
@@ -84,9 +108,12 @@ class Door:
             try:
                 msg = self.sock.recv(zmq.DONTWAIT)
             except:
-                return
+                    return
             message = self._unpackDoorMessage(msg)
             if message:
+                self.lastMessage = time.time()
+                self.connected = True
+
                 if message['TYPE'] == 'HEARTBEAT':
                     self._out.append(self.HEARTBEAT_RESPONSE)
                 elif message['TYPE'] == 'HEARTBEAT_RESPONSE':
@@ -99,12 +126,16 @@ class Door:
         """
         Connect new user to door.
         """
-        CONNECT = {'TYPE': 'CONNECT',
+        CONNECT = {'TYPE': 'SYSTEM',
                    'USER': user,
                    'DOOR': self._id,
-                   'MESSAGE': ""
+                   'MESSAGE': "CONNECT"
                    }
-        self.sendDoorMessage(CONNECT)
+        if self.connected:
+            self.sendDoorMessage(CONNECT)
+        else:
+            # If not connected, tell the BBS that.
+            self._in.append(self.DISCONNECT)
 
     def sendMessages(self):
         """
@@ -114,10 +145,10 @@ class Door:
             msg = self._packDoorMessage(self._out.pop())
             if msg:
                 try:
-                    self.sock.send(msg.encode('ascii', 'ignore'))
+                    self.sock.send(msg.encode('ascii', 'ignore'), zmq.NOBLOCK)
                 except:
-                    logging.error("Error: Failed sending zmq \
-                            message: {}".format(msg))
+                    logging.error(" Failed sending zmq message: {}".format(msg))
+
 
     def _unpackDoorMessage(self, message):
         """
@@ -127,8 +158,7 @@ class Door:
         try:
             msg = json.loads(message.decode(encoding='ascii'))
         except:
-            logging.error("Error: Unable to unserialize \
-                    message: {}".format(msg,))
+            logging.error(" Unable to unserialize message: {}".format(msg,))
             return False
         # Ensure the messages has all required fields
         if self._validateDoorMessage(msg, False):
@@ -145,8 +175,7 @@ class Door:
             try:
                 msg = json.dumps(message)
             except:
-                logging.error("Error: Unable to serializing \
-                        message: {}".format(message))
+                logging.error(" Unable to serializing message: {}".format(message))
                 return False
             return msg
         else:
@@ -163,11 +192,9 @@ class Door:
             return True
         else:
             if packing:
-                logging.error("Error: Cannot pack invalid \
-                        Door Message: {}".format(message))
+                logging.error(" Cannot pack invalid Door Message: {}".format(message))
             else:
-                logging.error("Error: Cannot unpack invalid \
-                        Door Message: {}".format(message))
+                logging.error(" Cannot unpack invalid Door Message: {}".format(message))
             return False
 
 
@@ -202,7 +229,11 @@ class DoorEngine:
         Connect user to a door.
         """
         if self.doors[door]:
-            self.doors[door].connectUser(user)
+            if self.doors[door].connected:
+                self.doors[door].connectUser(user)
+                return True
+        return False
+
 
     def hasDoor(self, door):
         """
@@ -218,7 +249,6 @@ class DoorEngine:
         Send message to a door.
         """
         if self.doors[door]:
-            print("Sending message to Door")
             self.doors[door].sendDoorMessage(
                 self.makeUserMessage(user, door, message))
 

@@ -115,15 +115,22 @@ class SonzoBBS:
         global BBSUSERS
 
         for msg in messages:
-            print(msg)
+            logging.debug(msg)
             if msg['TYPE'] == 'SYSTEM':
-                print("SYSTEM")
                 self.processSystemMessage(msg)
             elif msg['TYPE'] == 'USER':
                 for user in BBSUSERS:
                     if user.username == msg['USER']:
                         sendClient(user, msg['MESSAGE'])
                         break
+            elif msg['TYPE'] == 'DISCONNECT':
+                door = msg['DOOR']
+                for client in BBSUSERS:
+                    if client.door == door:
+                        client.door = None
+                        sendClient(client, "\n^G<= ^MYou've been disconnected from {}. ^G=>\n".format(door), colorcodes=client.inANSIMode())
+                        sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
+
 
 
 def parser(client, line):
@@ -134,12 +141,15 @@ def parser(client, line):
 
     # Need to look for global messages before this.
     if client.door:
-        print("DOOR USER")
         BBS.doors.sendDoorMessage(client.username, client.door, line)
         return
 
     line = line.upper()
     line = "".join(filter(lambda x: x in stripchars, line))
+    if line == "":
+        sendClient(client, getFullMenu(client), colorcodes=client.inANSIMode())
+        return
+
     opts = getMenuOptions(client.getMenu())
     if line in opts:
         try:
@@ -156,9 +166,12 @@ def parser(client, line):
                 return
             else:
                 if BBS.doors.hasDoor(e.message):
-                    client.door = e.message
-                    BBS.doors.connectUser(client.username, e.message)
-
+                    if BBS.doors.connectUser(client.username, e.message):
+                        client.door = e.message
+                    else:
+                        sendClient(client, '\n^G<= ^MSorry, this door appears to be off-line. ^G=>\n', colorcodes=client.inANSIMode())
+                        sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
+                    
                 #sendClient(client, '\n^G<= ^MEntering Door ^G=>\n', colorcodes=client.inANSIMode())
                 #sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
                 return
