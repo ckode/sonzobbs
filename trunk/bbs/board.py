@@ -169,7 +169,7 @@ def parser(client, line):
                     if BBS.doors.connectUser(client.username, e.message):
                         client.door = e.message
                     else:
-                        sendClient(client, '\n^G<= ^MSorry, this door appears to be off-line. ^G=>\n', colorcodes=client.inANSIMode())
+                        sendClient(client, '\n^G<= ^MSorry, {} appears to be off-line. ^G=>\n'.format(e.message), colorcodes=client.inANSIMode())
                         sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
                     
                 #sendClient(client, '\n^G<= ^MEntering Door ^G=>\n', colorcodes=client.inANSIMode())
