@@ -128,7 +128,8 @@ class SonzoBBS:
                 for client in BBSUSERS:
                     if client.door == door:
                         client.door = None
-                        sendClient(client, "\n^G<= ^MYou've been disconnected from {}. ^G=>\n".format(door), colorcodes=client.inANSIMode())
+                        sendClient(client, "\n^G<= ^MYou've been disconnected from {}. ^G=>\n".format(door),
+                                   colorcodes=client.inANSIMode())
                         sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
 
 
@@ -158,9 +159,10 @@ def parser(client, line):
         except MenuOptionException as e:
             # Probably should never see this raised exception.  It's a safety net.
             if e.__repr__() == "INVALID":
-                sendClient(client, '\n^G<= ^MInvalid selection, please try again. ^G=>\n', colorcodes=client.inANSIMode())
+                sendClient(client, '\n^G<= ^MInvalid selection, please try again. ^G=>\n',
+                           colorcodes=client.inANSIMode())
                 sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
-            elif e.__repr__() == "MenuOptionException('LOGOFF',)":
+            elif e.__repr__() == 'LOGOFF':
                 sendClient(client, "^GGoodbye!", colorcodes=client.inANSIMode())
                 client.disconnect()
                 return
@@ -169,11 +171,9 @@ def parser(client, line):
                     if BBS.doors.connectUser(client.username, e.message):
                         client.door = e.message
                     else:
-                        sendClient(client, '\n^G<= ^MSorry, {} appears to be off-line. ^G=>\n'.format(e.message), colorcodes=client.inANSIMode())
+                        sendClient(client, '\n^G<= ^MSorry, {} appears to be off-line. ^G=>\n'.format(e.message),
+                                   colorcodes=client.inANSIMode())
                         sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
-                    
-                #sendClient(client, '\n^G<= ^MEntering Door ^G=>\n', colorcodes=client.inANSIMode())
-                #sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
                 return
     else:
         sendClient(client, '\n^G<= ^MInvalid selection, please try again. ^G=>\n', colorcodes=client.inANSIMode())

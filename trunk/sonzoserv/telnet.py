@@ -27,7 +27,7 @@
 # -Added support for detecting the terminal speed.
 # -Added an Auto-Sensing feature that allows a dict of required terminal
 #  features to be detected upon initial connection.
-# 
+#
 # Omegus Source: https://github.com/Omegus/miniboa
 #
 # Licensed under the Apache 2 license
@@ -155,34 +155,34 @@ class ConnectionLost(Exception):
     """
     Custom exception to signal a lost connection to the Telnet Server.
     """
-    
-    
-    
+
+
+
 class TelnetServer(object):
     """
     Telnet Server
     """
-    
+
     def __init__(self, address='', client='', port=23, timeout=0.1):
         """
         Initialize a new TelnetServer.
-        
-        Initialized by passing keyword arguments.  If no keywords are passed, 
+
+        Initialized by passing keyword arguments.  If no keywords are passed,
         the defaults are used.
-        
+
         def __init__(self, address='', client=TelnetProtocol, port=23, timeout=0.1):
-        
+
         - client: A class defintion that handles the client's telnet protocol negotiations.
         - address: IP Address to bind too.
         - port: Port to bind too.
         - timeout: Socket polling timeout.
-        
+
         The client must be the local TelnetProtocol class or a subclass of the TelnetProtocol.
         """
         if sys.version_info[0] is not 3:
             logging.error(" Python version 3 is required for this application.")
             sys.exit(1)
-            
+
         self._SERVER = True
         self._addr = address
         self._port = port
@@ -194,82 +194,82 @@ class TelnetServer(object):
             self._clientclass = TelnetProtocol
         else:
             self._clientclass = client
-        
+
         # Embbed function in run() loop
         self._installedFunctions = []
         # Installed, timed looping calls.
         self._loopingCalls = []
         # Functions to be called later.
-        self._callLater = [] 
-        
-        
+        self._callLater = []
+
+
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        
+
         try:
             self._socket.bind((self._addr, self._port))
             self._socket.listen(5)
         except socket.error as err:
             logging.critical("Error: Failed to create the server socket: " + str(err))
             raise
-        
+
         self._server_fileno = self._socket.fileno()
-    
-        
+
+
     def run(self):
         """
         Start Telnet Server's Main Loop.
-        
+
         Example:
         - <srvr>.run()
         """
         while self._SERVER:
             self._poll()
-            
+
             # Execute installed functions
             for function in self._installedFunctions:
                 function.execute()
-                
+
             # Excute timed loopingCalls.
             for call in self._loopingCalls:
                 call.execute()
-                    
+
             # Execute callLater functions then remove from self.callLater list.
             for call in self._callLater:
                 if call.runtime <= time.time():
                     call.execute()
                     self._callLater.remove(call)
 
-            self._processClients()                    
-    
+            self._processClients()
+
         logging.info(" Shutting down.")
         self._clients.clear()
-        self._negotiating_clients.clear()        
+        self._negotiating_clients.clear()
         sys.exit(1)
-        
-        
+
+
     def onConnect(self, client):
         """
         New connection handler
-        
+
         Override with custom connection code.
         """
         pass
 
-    
+
     def onDisconnect(self, client):
         """
         Disconnect handler
-        
+
         Override with custom disconnect code.
         """
         pass
-     
-    
+
+
     def install(self, *args, **kwargs):
         """
         Install a function to be executed during the main loop.
-        
+
         Example:
         - obj.install(arg1, <arg2>, ..., func=<func>)
         """
@@ -284,49 +284,49 @@ class TelnetServer(object):
     def shutdown(self):
         """
         Disconnect all users and shutdown.
-        
+
         Example:
         - <srvr>.shutdown()
         """
-        self._SERVER = False    
-        
-        
+        self._SERVER = False
+
+
     def loopingCall(self, *args, **kwargs):
         """
         Install looping call.
-        
+
         newobj = obj.loopingCall(arg1, <arg2>, ..., func=<func>)
         newobj.start(<delay>)
-        
+
         Delay is an int or float and specified in seconds.
         """
         if kwargs['func']:
             newcall = LoopingCall(*args, func=kwargs['func'])
-        
+
         if newcall:
             self._loopingCalls.append(newcall)
         else:
             logging.error("Error: Could not install loopingCall function.")
-    
+
         return newcall
-    
-    
+
+
     def callLater(self, *args, **kwargs):
         """
         Install a function to be called after a delay of <x> seconds.
-        
+
         Example:
         -  obj.callLater(arg1, <arg2>, ..., func=<your_function>, delay=<value>)
-        
+
         Delay is a int or float specified in seconds.
         """
         if kwargs['func'] and kwargs['delay']:
             newcall = CallLater(*args, func=kwargs['func'], delay=kwargs['delay'])
-        
+
         if newcall:
             self._callLater.append(newcall)
         else:
-            logging.error("Error: Could not install callLater function.") 
+            logging.error("Error: Could not install callLater function.")
 
 
     def _clientCount(self):
@@ -335,7 +335,7 @@ class TelnetServer(object):
         """
         return len(self._clients)
 
-                    
+
     def _processClients(self):
         """
         Process client's input.
@@ -346,7 +346,7 @@ class TelnetServer(object):
                 if not msg:
                     break
                 else:
-                    client.dataRecieved(msg)  
+                    client.dataReceived(msg)
 
 
     def _poll(self):
@@ -357,27 +357,27 @@ class TelnetServer(object):
         recv_list = [self._server_fileno]
         dead_list = []
         done_negotiating = []
-        
+
         for client in self._negotiating_clients.values():
             client._check_auto_sense()
             if client._protocol_negotiation == True:
                 self._clients[client._getSocket()] = client
                 done_negotiating.append(client._getSocket())
                 client.onConnect()
-                
-        
+
+
         for client in self._clients.values():
             if client._isConnected():
                 recv_list.append(client._getSocket())
             else:
                 client.onDisconnect()
                 dead_list.append(client._getSocket())
-                
+
         for client in self._negotiating_clients.values():
             if client._isConnected():
                 recv_list.append(client._getSocket())
             else:
-                done_negotiating.append(client._getSocket())                
+                done_negotiating.append(client._getSocket())
 
         send_list = []
         for client in self._clients.values():
@@ -387,13 +387,13 @@ class TelnetServer(object):
         for client in self._negotiating_clients.values():
             if client._sendPending():
                 send_list.append(client._getSocket())
-                
-        try:                
-            rlist, slist, elist = select.select(recv_list, send_list, [], self._timeout)    
+
+        try:
+            rlist, slist, elist = select.select(recv_list, send_list, [], self._timeout)
         except socket.error as err:
             logging.critical("Socket Select() error: '{}: {}'".format(err[0], err[1]))
             raise
-        
+
         for fileno in rlist:
             # Is it the server's socket for a new connection?
             if fileno == self._server_fileno:
@@ -403,7 +403,7 @@ class TelnetServer(object):
                     logging.error("Socket error on accept(): '{}: {}'".format(err[0], err[1]))
                     sock.close()
                     continue
-            
+
                 if self._clientCount() >= MAX_CONNECTIONS:
                     logging.warning("New connection rejected.  Maximum connection count reached.")
                     self.rejectNewConnection()
@@ -416,38 +416,38 @@ class TelnetServer(object):
                 new_client._detect_term_caps()
                 self._negotiating_clients[new_client._getSocket()] = new_client
                 continue
-            
-            if fileno in self._clients.keys():  
-                try: 
+
+            if fileno in self._clients.keys():
+                try:
                     self._clients[fileno]._recv()
                 except ConnectionLost:
                     onDisconnect()
-                    
-            elif fileno in self._negotiating_clients.keys():            
-                try: 
+
+            elif fileno in self._negotiating_clients.keys():
+                try:
                     self._negotiating_clients[fileno]._recv()
                 except ConnectionLost:
                     done_negociating.append(fileno)
-                    
-        # Send pending buffers to client        
+
+        # Send pending buffers to client
         for fileno in slist:
             if fileno in self._clients.keys():
                 self._clients[fileno]._send()
             elif fileno in self._negotiating_clients.keys():
                 self._negotiating_clients[fileno]._send()
-        
-        # remove clients no longer connected        
+
+        # remove clients no longer connected
         for dead in dead_list:
-            del self._clients[dead] 
-        del dead_list            
+            del self._clients[dead]
+        del dead_list
 
                 # Remove clients from negotiating list once done.
         for dead in done_negotiating:
             del self._negotiating_clients[dead]
-        del done_negotiating 
+        del done_negotiating
 
 
-        
+
 class TelnetOption(object):
     """
     Simple class used to track the status of an extended Telnet option.
@@ -457,15 +457,15 @@ class TelnetOption(object):
         self.remote_option = UNKNOWN    # Remote state of an option
         self.reply_pending = False      # Are we expecting a reply?
         self.option_text = "Unknown"    # Friendly text for debug or display
-    
-        
-       
-        
+
+
+
+
 class TelnetProtocol(object):
     """
     Telent Client Class
     """
-    
+
     def __init__(self, socket, addr):
         """
         Initialize a new client object.
@@ -499,8 +499,8 @@ class TelnetProtocol(object):
         self._last_message = time.time()
         # Are we kicking the client off?
         self._kicked = False
-        
-        
+
+
         ## State variables for interpreting incoming telnet commands
         self._telnet_got_iac = False        # Are we inside an IAC sequence?
         self._telnet_got_cmd = None         # Did we get a telnet command?
@@ -509,23 +509,23 @@ class TelnetProtocol(object):
         self._telnet_echo = False           # Echo input back to the client?
         self._telnet_echo_password = False  # Echo back '*' for passwords?
         self._telnet_sb_buffer = ''         # Buffer for sub-negotiations
-        self._auto_sensing_done = False     #True when all the negotiations are done    
+        self._auto_sensing_done = False     #True when all the negotiations are done
 
 
-    
-    def dataRecieved(self, data):
+
+    def dataReceived(self, data):
         """
-        Return data recived.
-        
+        Return data received.
+
         Override this function.
         """
         pass
-        
-        
+
+
     def inCharacterMode(self):
         """
-        Is the client in character mode? 
-        
+        Is the client in character mode?
+
         Example:
         - obj.inCharacterMode()
         """
@@ -533,11 +533,11 @@ class TelnetProtocol(object):
             return True
         else:
             return False
-    
+
     def setCharacterMode(self):
         """
         Set client Character Mode opposite of what it is now.
-        
+
         Example:
         - obj.setCharacterMode()
         """
@@ -545,53 +545,53 @@ class TelnetProtocol(object):
             self._character_mode = False
         else:
             self._character_mode = True
-            
-            
+
+
     def getCharacterMode(self):
         """
         Return which mode the client is currently in.
-        
+
         (Character Mode / LineMode
-        
+
         Example:
         - get.setCharacterMode()
         """
         return self._character_mode
-        
+
 
     def inANSIMode(self):
         """
         Return current ANSI setting.
-        
+
         Example:
         - obj.inANSIMode()
         """
         return self._ansi
-    
-    
+
+
     def setANSIMode(self):
         """
         Change ANSI mode to opposite what it is now.
-        
+
         Example:
         - obj.setANSIMode()
         """
         if self._ansi:
-            self._ansi = False 
+            self._ansi = False
         else:
             self._ansi = True
 
-        
+
     def getAddrPort(self):
         """
         Return the client's IP address and port number as a list.
-        
+
         Example: (unpacked)
         - addr, port = obj.getAddrPort()
         Exmaple: (packed)
         - addrport = obj.getAddrPort()
         """
-        return "{}:{}".format(self._addr, self._port)        
+        return "{}:{}".format(self._addr, self._port)
 
 
     def disconnect(self):
@@ -602,35 +602,35 @@ class TelnetProtocol(object):
         - obj.disconnect()
         """
         self._new_messages = False
-        self._connected = False		
-        
+        self._connected = False
+
     def send(self, message):
         """
         Add new messages to the client.
-        
+
         Example:
         - obj.send(message)
         """
         if self._new_messages:
             self._send_buffer = self._send_buffer + message.replace('\n', '\r\n')
             self._send_pending = True
-        
-           
+
+
     def _send(self):
         """
         Called by TelnetServer to send data to the client.
         """
-        
+
         if self._telnet_echo and self._echo_buffer:
             try:
                 sent = self._socket.send(bytes(self._echo_buffer, "cp1252"))
             except socket.error as err:
                 self._connected = False
-                return False            
+                return False
             self._echo_buffer = ''
 
-            
-            
+
+
         if self.inCharacterMode():
             try:
                 sent = self._socket.send(bytes(self._send_buffer, "cp1252"))
@@ -638,7 +638,7 @@ class TelnetProtocol(object):
                 self._send_buffer = self._send_buffer[sent:]
             except socket.error as err:
                 self._connected = False
-                return False 
+                return False
         else:
             # Is the user currently typing?
             if not len(self._recv_buffer):
@@ -647,8 +647,8 @@ class TelnetProtocol(object):
                     sent = self._socket.send(bytes(self._send_buffer, "cp1252"))
                 except socket.error as err:
                     self._connected = False
-                    return False            
-            
+                    return False
+
                 self._bytes_sent = sent
                 self._send_buffer = self._send_buffer[sent:]
             else:
@@ -657,33 +657,33 @@ class TelnetProtocol(object):
                     self._kicked = True
                     return
                 self._send_pending = True
-             
 
-            
-            
+
+
+
     def _recv(self):
         """
-        Called my TelnetServer to recieve data from the client.
+        Called my TelnetServer to receive data from the client.
         """
         try:
-            #Encode recieved bytes in ansi
+            #Encode received bytes in ansi
             data = str(self._socket.recv(2048), "cp1252")
         except socket.error as err:
-            logging.error("RECIEVE socket error '{}:{}' from {}".format(err[0], err[1], self.addrport()))
-            raise ConnectionLost()        
-        
-        
+            logging.error("RECEIVE socket error '{}:{}' from {}".format(err[0], err[1], self.addrport()))
+            raise ConnectionLost()
+
+
         if not len(data):
             logging.debug("No data received.  Connection lost.")
             raise ConnectionLost()
-        
+
         # Workaround for clients that send CR as "\r0" (carrage return plus a null)
         if data == "{}{}".format(chr(13), chr(0)):
             data = "\n"
-            
+
         for byte in data:
             self._iac_sniffer(byte)
-             
+
         if self.inCharacterMode():
             if self._recv_buffer:
                 self._cmd_list.append(self._recv_buffer)
@@ -699,7 +699,7 @@ class TelnetProtocol(object):
                 self._cmd_list.append(cmd)
                 self._cmd_ready = True
                 self._recv_buffer = self._recv_buffer[mark+1:]
-                
+
 
     def _sendPending(self):
         """
@@ -708,16 +708,16 @@ class TelnetProtocol(object):
         if len(self._send_buffer):
             return True
         return False
-    
- 
+
+
     def _commandReady(self):
         """
         Is there a command ready?
-        
+
         """
         return self._cmd_ready
-                    
-            
+
+
     def _getCommand(self):
         """
         Return first command line command list.
@@ -727,8 +727,8 @@ class TelnetProtocol(object):
         else:
             self._cmd_ready = False
             return
-     
-            
+
+
     def _isConnected(self):
         """
         Is the client connected?
@@ -736,15 +736,15 @@ class TelnetProtocol(object):
         if self._connected and not self._kicked:
             return True
         return False
-    
-    
+
+
     def _getSocket(self):
         """
         Return client's socket id.
         """
         return self._fileno
-    
-    
+
+
     def _detect_term_caps(self):
         """
         Send initial terminal negotiation options that we need and wait for the
@@ -756,7 +756,7 @@ class TelnetProtocol(object):
         self._request_terminal_speed()
         self._request_naws()
         self._autosensetimeout = time.time()
-                       
+
 
     def _check_auto_sense(self):
         """
@@ -773,8 +773,8 @@ class TelnetProtocol(object):
             self._protocol_negotiation = True
             logging.debug("Term Type: {}".format(self._terminal_type))
             return
-        
-        # For megamud since it reports TTYPE=False, TSPEED=False, NAWS=True, 
+
+        # For megamud since it reports TTYPE=False, TSPEED=False, NAWS=True,
         # and a terminal type of IBM-3179-2.
         elif self._check_reply_pending(TTYPE) is False and \
                 self._check_reply_pending(TSPEED) is False and \
@@ -790,9 +790,9 @@ class TelnetProtocol(object):
                 self._protocol_negotiation = True
                 logging.debug("Term Type: {}".format(self._terminal_type))
                 return
-                
+
         return
-    
+
 # Private telnet negotiation functions
 
     def _request_do_sga(self):
@@ -802,8 +802,8 @@ class TelnetProtocol(object):
         logging.debug("Requesting suppress go-ahead.")
         self._iac_do(SGA)
         self._note_reply_pending(SGA, True)
-        
-        
+
+
     def _request_will_echo(self):
         """
         Request WILL echo to echo client's text.  RFC-857
@@ -812,8 +812,8 @@ class TelnetProtocol(object):
         self._iac_will(ECHO)
         self._note_reply_pending(ECHO, True)
         self._telnet_echo = True
-        
-        
+
+
     def _request_wont_echo(self):
         """
         Request WON'T echo to not echo client's text.  RC-857
@@ -821,9 +821,9 @@ class TelnetProtocol(object):
         logging.debug("Requesting won't echo.")
         self._iac_wont(ECHO)
         self._note_reply_pending(ECHO, True)
-        self._telnet_echo = False        
-        
-        
+        self._telnet_echo = False
+
+
     def password_mode_on(self):
         """
         Request disable echo for passwords protection.
@@ -831,16 +831,16 @@ class TelnetProtocol(object):
         logging.debug("Requesting to disable echo for passwords")
         self._iac_will(ECHO)
         self._note_reply_pending(ECHO, True)
-        
-        
+
+
     def password_mode_off(self):
         """
         Request echo on since we aren't entering a password at this time.
         """
         logging.debug("Request to enable echo since not entering a password at this time.".format(self.address))
         self._iac_wont(ECHO)
-        self._note_reply_pending(ECHO, True)        
-        
+        self._note_reply_pending(ECHO, True)
+
 
     def _request_naws(self):
         """
@@ -848,8 +848,8 @@ class TelnetProtocol(object):
         """
         self._iac_do(NAWS)
         self._note_reply_pending(NAWS, True)
-        
-    
+
+
     def _request_terminal_type(self):
         """
         Begins the Telnet negotiations to request the terminal type from
@@ -857,17 +857,17 @@ class TelnetProtocol(object):
         """
         self._iac_do(TTYPE)
         self._note_reply_pending(TTYPE, True)
-    
-        
+
+
     def _request_terminal_speed(self):
         """
         Begins the Telnet negotiations to request the terminal speed from
         the client.  See RFC 1079.
         """
         self._iac_do(TSPEED)
-        self._note_reply_pending(TSPEED, True)          
-    
-        
+        self._note_reply_pending(TSPEED, True)
+
+
     def _recv_byte(self, byte):
         """
         Non-printable filtering currently disabled because it did not play
@@ -875,7 +875,7 @@ class TelnetProtocol(object):
         """
         ## Filter out non-printing characters
         #if (byte >= ' ' and byte <= '~') or byte == '\n':
-             
+
         if self._telnet_echo:
             self._echo_byte(byte)
         if chr(8) is byte or chr(127) is byte:
@@ -888,8 +888,8 @@ class TelnetProtocol(object):
     def _echo_byte(self, byte):
         """
         Echo a character back to the client and convert LF into CR\LF.
-        """ 
-        # Enter key hit, reset buffer and append \r        
+        """
+        # Enter key hit, reset buffer and append \r
         if byte == '\n':
             self._echo_buffer += '\r\n'
             self._echo_buffer_count = 0
@@ -897,10 +897,10 @@ class TelnetProtocol(object):
         # Return gives two bytes. Ignore the second one. (chr(13))
         if byte == chr(13):
             return
-            
+
         if self._telnet_echo_password:
             self._echo_buffer += '*'
-        # If  backspace or delete, delete last character in echo as long as there is 
+        # If  backspace or delete, delete last character in echo as long as there is
         # a typed character to delete.
         if byte is chr(8) or byte is chr(127):
             if self._echo_buffer_count < 1:
@@ -1039,7 +1039,7 @@ class TelnetProtocol(object):
         ## Incoming DO's and DONT's refer to the status of this end
         if cmd == DO:
             if option == BINARY or option == SGA or option == ECHO:
-                
+
                 if self._check_reply_pending(option):
                     self._note_reply_pending(option, False)
                     self._note_local_option(option, True)
@@ -1109,18 +1109,18 @@ class TelnetProtocol(object):
                         self._check_remote_option(TTYPE) is UNKNOWN):
                     self._note_remote_option(TTYPE, True)
                     self._iac_do(TTYPE)
-            
+
             elif option == TSPEED:
                 if self._check_reply_pending(TSPEED):
                     self._note_reply_pending(TSPEED, False)
                     self._note_remote_option(TSPEED, True)
                     ## Tell them to send their terminal speed
                     self.send("{}{}{}{}{}{}".format(IAC, SB, TSPEED, SEND, IAC, SE))
-                    
+
                 elif (self._check_remote_option(TSPEED) is False or
                       self._check_remote_option(TSPEED) is UNKNOWN):
                     self._note_remote_option(TSPEED, True)
-                    self._iac_do(TSPEED)                
+                    self._iac_do(TSPEED)
 
         elif cmd == WONT:
             if option == ECHO:
@@ -1129,7 +1129,7 @@ class TelnetProtocol(object):
                 if self._check_remote_option(ECHO) is UNKNOWN:
                     self._note_remote_option(ECHO, False)
                     self._iac_dont(ECHO)
-                    
+
             if option == TSPEED:
                 if self._check_reply_pending(option):
                     self._note_reply_pending(option, False)
@@ -1174,11 +1174,11 @@ class TelnetProtocol(object):
                 self._terminal_type = bloc[2:]
                 self._note_reply_pending(TTYPE, False)
                 #logging.debug("Terminal type = '{}'".format(self.terminal_type))
-                
+
             if bloc[0] == TSPEED and bloc[1] == IS:
                 speed = bloc[2:].split(',')
                 self._terminal_speed = speed[0]
-                
+
             if bloc[0] == NAWS:
                 if len(bloc) != 5:
                     logging.warning("Bad length on NAWS SB: " + str(len(bloc)))
@@ -1261,4 +1261,4 @@ class TelnetProtocol(object):
         """Send a Telnet IAC "WONT" sequence."""
         self.send("{}{}{}".format(IAC, WONT, option))
 
-        
+
