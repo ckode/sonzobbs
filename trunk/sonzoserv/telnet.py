@@ -427,7 +427,7 @@ class TelnetServer(object):
                 try:
                     self._negotiating_clients[fileno]._recv()
                 except ConnectionLost:
-                    done_negociating.append(fileno)
+                    done_negotiating.append(fileno)
 
         # Send pending buffers to client
         for fileno in slist:

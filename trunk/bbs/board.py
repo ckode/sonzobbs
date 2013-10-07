@@ -1,11 +1,12 @@
 import logging
 import os
+import sys
 import string
 
 from bbs.menu import getMenuOptions, menuOptionSelected, MenuOptionException
 from bbs.menu import getMiniMenu, getFullMenu, verifyMenuDatabase
 
-from bbs.doors import DoorEngine
+from bbs.doors import DoorEngine, getDoorConfigs
 
 BBSUSERS = []
 BBS = None
@@ -74,27 +75,15 @@ class SonzoBBS:
             SPLASH = None
 
 
-        # Temp stuff to listen for a test door program
-        dodoors = True
-        if dodoors:
-            # The following, is a test door defined.
-            cfgs = []
-            first = {}
-            first['PORT'] = '2222'
-            first['NAME'] = 'Teleconference'
-            first['IP'] = '*'
-            first['ID'] = 'TELECONFERENCE'
-            cfgs.append(first)
-
-            self.doors = DoorEngine(cfgs)
-            if self.doors:
-                # Install the function to process the door messages
-                # into the main loop.
-                SERVER.install(func=self.doors.processDoors)
+        self.doors = DoorEngine(getDoorConfigs())
+        if self.doors:
+            # Install the function to process the door messages
+            # into the main loop.
+            SERVER.install(func=self.doors.processDoors)
 
         logging.info(" Sonzo BBS version {}".format(self.version))
         logging.info(" Listening for connections...  CTRL-C to break.")
-        #self.run()
+
 
     def processSystemMessage(self, message):
         """

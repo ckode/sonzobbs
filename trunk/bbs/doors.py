@@ -1,13 +1,15 @@
 import json
 import zmq
-import sys
 import time
 import logging
+import configparser
 
 import bbs.board
 
 from collections import deque
 
+
+REQUIRED_OPTIONS = ['ID', 'NAME', 'DESCRIPTION', 'IP', 'PORT', 'NOTIFICATIONS', 'ENABLE', 'MENU', 'MENUOPTION', 'GROUP']
 
 class Door:
     """
@@ -19,11 +21,18 @@ class Door:
         """
         self._in = deque()
         self._out = deque()
-        self._state = False
+        self._id = config['ID']
         self._name = config['NAME']
         self._ip = config['IP']
         self._port = config['PORT']
-        self._id = config['ID']
+        self._notify = config['NOTIFICATIONS']
+        self._desc = config['DESCRIPTION']
+        self._state = config['ENABLE']
+        self._menu = config['MENU']
+        self._menuoption = config['MENUOPTION']
+        self._group = config['GROUP']
+
+        # Door connection state info
         self.connected = False
         self.lastMessage = 0
         self.lastHeartbeat = 0
@@ -44,7 +53,7 @@ class Door:
                           'DOOR': self._id,
                           'MESSAGE': ""
                           }
-                          
+
         try:
             context = zmq.Context()
             self.sock = context.socket(zmq.PAIR)
@@ -219,16 +228,20 @@ class DoorEngine:
         Initialize the Door Engine
         """
         self.doors = {}
-        for cfg in configs:
+        for cfg in configs.values():
             if validateDoorConfig(cfg):
+                logging.info(" Loading door: {}".format(cfg['ID']))
                 self.doors[cfg['ID']] = Door(cfg)
-            #self.doors[cfg['ID']].run()
 
     def connectUser(self, user, door):
         """
         Connect user to a door.
         """
+        print("{}".format(self.doors.keys()))
+        print(self.doors[door])
         if self.doors[door]:
+            print("DOOR STATUS: {}".format(self.doors[door]))
+            print("Connected: {}".format(self.doors[door].connected))
             if self.doors[door].connected:
                 self.doors[door].connectUser(user)
                 return True
@@ -274,14 +287,33 @@ class DoorEngine:
         return msg
 
 
-if __name__ == '__main__':
-    cfgs = []
-    first = {}
-    first['PORT'] = '2222'
-    first['NAME'] = 'Test Door'
-    first['IP'] = '*'
-    first['ID'] = 'TESTDOOR'
 
-    cfgs.append(first)
-    x = DoorEngine(cfgs)
-    #print(x)
+def getDoorConfigs(cfgfile='doors.ini'):
+    """
+    Read and return a dictionary of dictionary configs
+    """
+    def _verifySection(section):
+        for option in REQUIRED_OPTIONS:
+            if not cfg.has_option(section, option):
+                logging.error(" {} configuration is missing {} option in the configuration file.".format(section, option))
+                return False
+        return True
+
+    cfgs = {}
+    cfg = configparser.ConfigParser()
+    cfg.read(cfgfile)
+
+    for section in cfg.sections():
+        if _verifySection(section):
+            cfgs[section] = {}
+            for option in REQUIRED_OPTIONS:
+                cfgs[section][option] = cfg.get(section, option)
+        else:
+            logging.error(" {} door not loaded due to error loading the configurations.".format(section))
+
+
+    return cfgs if len(cfg) else None
+
+
+if __name__ == '__main__':
+   print("Running this as an app is pointless, shutting down.")

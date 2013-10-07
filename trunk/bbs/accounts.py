@@ -1,51 +1,35 @@
 import logging
+import sqlite3
+import os
 
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import mapper, sessionmaker
 
 from sonzoserv.telnet import TelnetProtocol
 from bbs.board import parser, BBSUSERS, splash, sendClient
 from bbs.menu import getFullMenu, getMiniMenu
 
-Base = declarative_base()
 
-bbs = create_engine('sqlite:///data/bbs.db', echo=True)
-bbsSession = sessionmaker(bind=bbs)
-bbssession = bbsSession()
+# Global database connection for Accounts module
+conn = None
+cursor = None
 
-
-class Account(TelnetProtocol, Base):
+class Account(TelnetProtocol):
     """
     Server side BBS account object.
     """
-
-    __tablename__ = 'users'
-
-    id = Column(Integer, primary_key=True)
-    username = Column(String)
-    fname = Column(String)
-    lname = Column(String)
-    password = Column(String)
-    #ban = ""
-    #globals = Column(Integer)
-    #account_class = Column(Integer)
-
 
     def __init__(self, sock, addr):
         """
         Initialize a BBS Account object.
         """
         TelnetProtocol.__init__(self, sock, addr)
-        self.status = None
-        self.username = ''
-        self.password = ''
-        self.acctclasses = []
+        self._id = 1
+        self._status = None
+        self._username = ''
+        self._password = ''
         self.door = None
-        self.globals = True
-        self.menu = 'MAINMENU'
-        self.parser = parser
+        self._globals = True
+        self._menu = 'MAINMENU'
+        self._parser = parser
 
 
     def onConnect(self):
@@ -78,45 +62,92 @@ class Account(TelnetProtocol, Base):
         """
         Set users current menu.
         """
-        self.menu = menu
+        self._menu = menu
 
 
     def getMenu(self):
         """
         Get users current menu.
         """
-        return self.menu
+        return self._menu
 
 
 
-class Roles(Base):
+class Roles:
+    """
+    Roles class assign BBS permissions.
 
-    __tablename__ = 'roles'
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-
-
-class Groups(Base):
-    __tablename__ = 'groups'
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    user = Column(Integer, ForeignKey('users.id'), nullable=False)
-
-
-class GroupPermissions(Base):
-    __tablename__ = 'group_perms'
-    id = Column(Integer, primary_key=True)
-    group = Column(Integer, ForeignKey('groups.id'), nullable=False)
-    role = Column(Integer, ForeignKey('roles.id'), nullable=False,)
+    Database Table: roles
+    Roles permissions are are hard coded into the BBS and use
+    an predefined integer that links them to the defined permission.
+    """
+    def __init__(self):
+        """
+        Initialize BBS Roles
+        """
+        self._id = None
+        self._name = None
+        self._role = None
 
 
-class AccountGroupings(Base):
+class Groups:
+        """
+        Initialize BBS Groups
+
+        Database Table: groups
+        id = primary_key
+        name = String, nullable=False
+        user = Integer, ForeignKey('users.id'), nullable=False
+        """
+        def __init__(self):
+            self._id = None
+            self._name = None
+            self._user = None
+
+
+class GroupPermissions:
+        """
+        Initialize BBS Group Permissions
+
+        Database Table: group_perms
+
+        id = primary_key
+        group = Integer, ForeignKey('groups.id'), nullable=False
+        role = Integer, ForeignKey('roles.id'), nullable=True
+        """
+        def __init__(self):
+            self._id = None
+            self._group = None
+            self._role = None
+
+
+class AccountGroupings:
     """
     User to Group relationships
-    """
-    __tablename__ = 'user_perms'
-    id = Column(Integer, primary_key=True)
-    user = Column(Integer, ForeignKey('users.id'), nullable=False)
-    group = Column(Integer, ForeignKey('groups.id'), nullable=False)
 
-Base.metadata.create_all(bbs, checkfirst=True)
+    Database Table: user_perms
+
+    id = primary_key
+    user = Integer, ForeignKey('users.id'), nullable=False
+    group = Integer, ForeignKey('groups.id'), nullable=False
+    """
+    def __init__(self):
+        self._id = None
+        self._user = None
+        self._group = None
+
+
+def initializeUserAccounting():
+    """
+    Initialize user accounting system.
+    """
+    global conn
+    global cursor
+
+    try:
+        conn = sqlite3.connect(os.path.join('data', 'bbs.db'))
+        cursor = conn.cursor()
+    except:
+        logging.error("Failed trying to load database for using accounting.")
+
+
