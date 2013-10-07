@@ -1,12 +1,12 @@
 import logging
 import sqlite3
 import os
-
+import hashlib
 
 from sonzoserv.telnet import TelnetProtocol
 from bbs.board import parser, BBSUSERS, splash, sendClient
 from bbs.menu import getFullMenu, getMiniMenu
-
+from bbs.sql.accts import getUser
 
 # Global database connection for Accounts module
 conn = None
@@ -32,6 +32,10 @@ class Account(TelnetProtocol):
         self._parser = parser
 
 
+    def load(self):
+        getUser('sysop')
+        
+        
     def onConnect(self):
         """
         onConnect()
@@ -41,6 +45,7 @@ class Account(TelnetProtocol):
         BBSUSERS.append(self)
         splash(self)
         sendClient(self, getFullMenu(self), colorcodes=True)
+        self.load()
 
 
     def onDisconnect(self):
@@ -72,7 +77,24 @@ class Account(TelnetProtocol):
         return self._menu
 
 
-
+    def setPassword(self, passwd):
+        """
+        Change or set the user's password.
+        """
+        hasher = hashlib.sha512()
+        hasher.update(passwd.encode(passwd))
+        self._password = hasher.hexdigest()
+        #TODO: Save user to database
+        
+    def authenticate(self, user, passwd):
+        """
+        Authenticate user against user database.
+        """
+        hasher = hashlib.sha512()
+        hasher.update(passwd.encode(passwd))
+        # return authQuery(username,
+        passwd = hasher.hexdigest()
+        
 class Roles:
     """
     Roles class assign BBS permissions.

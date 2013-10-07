@@ -3,6 +3,7 @@ from bbs.accounts import Account
 #from bbs.board import SonzoBBS, BBS, SERVER
 import bbs.board
 
+
 import logging
 
 
