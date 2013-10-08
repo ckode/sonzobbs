@@ -109,7 +109,7 @@ class SonzoBBS:
                 self.processSystemMessage(msg)
             elif msg['TYPE'] == 'USER':
                 for user in BBSUSERS:
-                    if user.username == msg['USER']:
+                    if user.getAttr('username') == msg['USER']:
                         sendClient(user, msg['MESSAGE'])
                         break
             elif msg['TYPE'] == 'DISCONNECT':
@@ -157,7 +157,7 @@ def parser(client, line):
                 return
             else:
                 if BBS.doors.hasDoor(e.message):
-                    if BBS.doors.connectUser(client.username, e.message):
+                    if BBS.doors.connectUser(client.getAttr('username'), e.message):
                         client.door = e.message
                     else:
                         sendClient(client, '\n^G<= ^MSorry, {} appears to be off-line. ^G=>\n'.format(e.message),
@@ -221,6 +221,6 @@ def getUser(name):
     """
     global BBSUSERS
     for user in BBSUSERS:
-        if user.username == name:
+        if user.getAttr('username') == name:
             return user
     return None

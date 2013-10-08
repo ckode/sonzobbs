@@ -6,7 +6,7 @@ import hashlib
 from sonzoserv.telnet import TelnetProtocol
 from bbs.board import parser, BBSUSERS, splash, sendClient
 from bbs.menu import getFullMenu, getMiniMenu
-from bbs.sql.accts import getUser
+from bbs.sql.accts import getUser, saveUser
 
 # Global database connection for Accounts module
 conn = None
@@ -22,26 +22,56 @@ class Account(TelnetProtocol):
         Initialize a BBS Account object.
         """
         TelnetProtocol.__init__(self, sock, addr)
-        self._id = 1
-        self._status = None
-        self._username = ''
-        self._password = ''
+        self._attr = {}
+        self._attr['id'] = None
+        self._attr['username'] = ''
+        self._attr['passwd'] = ''
+        self._attr['firstname'] = ''
+        self._attr['lastname'] = ''
+        self._attr['globals'] = 1
+        self._attr['active'] = 0
+        self._attr['menu'] = 'MAINMENU'
+        self._attr['status'] = None
         self.door = None
-        self._globals = True
-        self._menu = 'MAINMENU'
-        self._parser = parser
+        self.parser = parser
+
+
+    def setAttr(self, attr, value):
+        """
+        Set account attribute to value.
+        """
+        if attr in self._attr.keys():
+            self._attr[attr] = value
+        else:
+            logging.error( "Failed to assign '{}' to attribute '{}'".format(value, attr))
+
+
+    def getAttr(self, attr):
+        """
+        Return user attribute.
+        """
+        if attr in self._attr.keys():
+            return self._attr[attr]
+        else:
+            return None
 
 
     def load(self):
-        getUser('sysop')
-        
-        
+        #TODO: Make sure authentication happens before this.
+        result = getUser(self._attr['username'])
+        if result:
+            for attr in result.keys():
+                self.setAttr(attr, result[attr])
+        else:
+            logging.error(" User '{}' not found in account database.".format(self._attr['username']))
+
+
     def onConnect(self):
         """
         onConnect()
         """
         # Remove this once login code is complete
-        self.username = self._port
+        self._attr['username'] = 'sysop'
         BBSUSERS.append(self)
         splash(self)
         sendClient(self, getFullMenu(self), colorcodes=True)
@@ -67,14 +97,14 @@ class Account(TelnetProtocol):
         """
         Set users current menu.
         """
-        self._menu = menu
+        self._attr['menu'] = menu
 
 
     def getMenu(self):
         """
         Get users current menu.
         """
-        return self._menu
+        return self._attr['menu']
 
 
     def setPassword(self, passwd):
@@ -83,9 +113,42 @@ class Account(TelnetProtocol):
         """
         hasher = hashlib.sha512()
         hasher.update(passwd.encode(passwd))
-        self._password = hasher.hexdigest()
-        #TODO: Save user to database
-        
+        self._attr['passwd'] = hasher.hexdigest()
+        self.save()
+
+
+    def save(self):
+        """
+        Update users in database.
+        """
+        # This list structure and elements must match bbs.sql.accts.UPDATEUSER SQL statement structure and elements.
+        userdata = [self._attr['username'],
+                    self._attr['passwd'],
+                    self._attr['firstname'],
+                    self._attr['lastname'],
+                    self._attr['globals'],
+                    self._attr['ansi'],
+                    self._attr['active'],
+                    self._attr['username']  # <- Second username for WHERE clause in UPDATE query
+                    ]
+        saveUser(userdata)
+
+
+    def createUser(self):
+        """
+        Update users in database.
+        """
+        # This list structure and elements must match bbs.sql.accts.ADDUSER SQL statement structure and elements.
+        userdata = [self._attr['username'],
+                    self._attr['passwd'],
+                    self._attr['firstname'],
+                    self._attr['lastname'],
+                    self._attr['globals'],
+                    self._attr['ansi'],
+                    self._attr['active']
+                    ]
+        addUserToDatabase(userdata)
+
     def authenticate(self, user, passwd):
         """
         Authenticate user against user database.
@@ -94,6 +157,7 @@ class Account(TelnetProtocol):
         hasher.update(passwd.encode(passwd))
         # return authQuery(username,
         passwd = hasher.hexdigest()
+        
         
 class Roles:
     """
