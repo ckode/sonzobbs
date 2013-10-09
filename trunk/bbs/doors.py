@@ -109,6 +109,7 @@ class Door:
         self._out.append(message)
         return
 
+
     def recieveMessages(self):
         """
         Receive and queue all messages.
@@ -131,6 +132,7 @@ class Door:
                     self._in.append(message)
         return
 
+
     def connectUser(self, user):
         """
         Connect new user to door.
@@ -145,6 +147,7 @@ class Door:
         else:
             # If not connected, tell the BBS that.
             self._in.append(self.DISCONNECT)
+
 
     def sendMessages(self):
         """

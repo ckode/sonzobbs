@@ -2,12 +2,12 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE accounts (
     id            INTEGER PRIMARY KEY,
-	username      TEXT UNIQUE NOT NULL,
+	username      TEXT UNIQUE COLLATE NOCASE NOT NULL,
 	firstname     TEXT NOT NULL,
 	lastname      TEXT NOT NULL,
 	passwd        TEXT NOT NULL,
 	globals       INTEGER NOT NULL DEFAULT 1,
-    ansi          INTEGER NOT NULL DEFAULT 0,
+    ansi          INTEGER,
 	active        INTEGER NOT NULL DEFAULT 0
 );
 
@@ -46,7 +46,7 @@ INSERT INTO accounts (username,
                       passwd, 
 				      firstname, 
 				      lastname, 
-				      globals, 
+				      globals,
 				      active) VALUES (
 				      'sysop',
 				      '08c484f85fa8e87031ecf419bd597da85eef96454e6db73fb691cd3945addfe7345e46b37343e2c7da7e12eab81c0f759360d3a06579afb7a2707dbd591526fb',

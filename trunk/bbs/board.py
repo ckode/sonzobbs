@@ -4,8 +4,9 @@ import sys
 import string
 
 from bbs.menu import getMenuOptions, menuOptionSelected, MenuOptionException
-from bbs.menu import getMiniMenu, getFullMenu, verifyMenuDatabase
-
+from bbs.menu import getMiniMenu, getFullMenu, verifyMenuDatabase, getLoginScreen
+from bbs.menu import getPasswordScreen
+from bbs.sql.accts import authUser, getUser
 from bbs.doors import DoorEngine, getDoorConfigs
 
 BBSUSERS = []
@@ -92,7 +93,7 @@ class SonzoBBS:
         if message['MESSAGE'] == 'DISCONNECT':
             client = getUser(message['USER'])
             if client:
-                client.door = None
+                client.setAttr('door', None)
                 sendClient(client, getFullMenu(client), colorcodes=client.inANSIMode())
 
 
@@ -115,8 +116,8 @@ class SonzoBBS:
             elif msg['TYPE'] == 'DISCONNECT':
                 door = msg['DOOR']
                 for client in BBSUSERS:
-                    if client.door == door:
-                        client.door = None
+                    if client.getAttr('door') == door:
+                        client.setAttr('door', None)
                         sendClient(client, "\n^G<= ^MYou've been disconnected from {}. ^G=>\n".format(door),
                                    colorcodes=client.inANSIMode())
                         sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
@@ -128,20 +129,26 @@ def parser(client, line):
     Parse the line.
     """
     global stripchars
+    
+    #line = line.upper()
+    line = "".join(filter(lambda x: x in stripchars, line))
 
+    if client.getAttr('state') != 'AUTHENTICATED':
+        login_parser(client, line)
+        return
+    
     # Need to look for global messages before this.
-    if client.door:
-        BBS.doors.sendDoorMessage(client.username, client.door, line)
+    if client.getAttr('door'):
+        BBS.doors.sendDoorMessage(client.getAttr('username'), client.gettAttr('door'), line)
         return
 
-    line = line.upper()
-    line = "".join(filter(lambda x: x in stripchars, line))
+
     if line == "":
         sendClient(client, getFullMenu(client), colorcodes=client.inANSIMode())
         return
 
     opts = getMenuOptions(client.getMenu())
-    if line in opts:
+    if line.upper() in opts:
         try:
             menuOptionSelected(client, line)
             sendClient(client, getFullMenu(client), colorcodes=client.inANSIMode())
@@ -158,7 +165,7 @@ def parser(client, line):
             else:
                 if BBS.doors.hasDoor(e.message):
                     if BBS.doors.connectUser(client.getAttr('username'), e.message):
-                        client.door = e.message
+                        client.setAttr('door', e.message)
                     else:
                         sendClient(client, '\n^G<= ^MSorry, {} appears to be off-line. ^G=>\n'.format(e.message),
                                    colorcodes=client.inANSIMode())
@@ -167,6 +174,45 @@ def parser(client, line):
     else:
         sendClient(client, '\n^G<= ^MInvalid selection, please try again. ^G=>\n', colorcodes=client.inANSIMode())
         sendClient(client, getMiniMenu(client), colorcodes=client.inANSIMode())
+
+
+def login_parser(client, input):
+    """
+    Parser for logging client in.
+    """
+    state = client.getAttr('state')
+
+    if state == 'CONNECTING':
+        if input == "":
+            sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
+            return
+        elif input.lower() == 'new':
+            print("NEW DUDE!")
+            return
+        elif len(input) > 1:
+            if getUser(input):
+                client.setAttr('state', 'LOGIN')
+                client.password_mode_on()
+                sendClient(client, getPasswordScreen(), colorcodes=client.inANSIMode())
+            else:
+                sendClient(client, "\n^GThat user does not exist.  Please try again.", colorcodes=client.inANSIMode())
+                sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
+            return
+        
+    elif state == 'LOGIN':
+        client.password_mode_off()
+        if input == '':
+            client.setAttr('state', 'CONNECTING')
+            sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
+        if len(input) > 2:
+            if authUser(client.getAttr('username'), input):
+                client.loadUser()
+                sendClient(client, getFullMenu(client), colorcodes=client.inANSIMode())
+            else:
+                sendClient(client, "^MInvalid login, please try again.\n", colorcodes=client.inANSIMode())
+                client.setAttr('state', 'CONNECTING')
+                sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
+
 
 def splash(client):
     """

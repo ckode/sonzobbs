@@ -8,7 +8,7 @@ conn = None
 cursor = None
 
 # Predefined database queries.
-AUTHQUERY = "SELECT COUNT(*) FROM accounts WHERE user=? and passwd=?"
+AUTHQUERY = "SELECT COUNT(*) as count FROM accounts WHERE username=? and passwd=?"
 GETUSER = "SELECT * FROM accounts WHERE username=?"
 UPDATEUSER = "UPDATE accounts SET username=?, passwd=?, firstname=?, lastname=?, globals=?, ansi=?, active=? WHERE username=?"
 ADDUSER = "INSERT INTO accounts (username, passwd, firstname, lastname, globals, ansi, acctive) values (?, ?, ?, ?, ?, ?, ?)"
@@ -34,22 +34,41 @@ def inititalizeDatabase(func):
 
 
 @inititalizeDatabase
-def authQuery(passwd):
+def authUser(client, passwd):
     """
     Authenticate username and password.
     """
     global conn
     global cursor
+    result = None
+    user = getUser(client)
     try:
         hasher = hashlib.sha512()
         hasher.update(passwd.encode('utf-8'))
-        cursor.execute(AUTHQUERY, (username, hasher.hexdigest()))
+        cursor.execute(AUTHQUERY, (client, hasher.hexdigest()))
+        result = cursor.fetchone()
+    except:
+        logging.error(" Error authenticating user {}".format(client))
+
+    return True if result['count'] == 1 else False
+
+
+@inititalizeDatabase
+def userExist(username):
+    """
+    Authenticate username and password.
+    """
+    global conn
+    global cursor
+    result = None
+    
+    try:
+        cursor.execute(GETUSER, (client.getAttr('username')))
         result = cursor.fetchone()
     except:
         pass
 
-    if result:
-        pass
+    return True if result else False
 
 
 @inititalizeDatabase
@@ -59,12 +78,13 @@ def getUser(username):
     """
     global cursor
     global conn
+    user = None
     try:
         cursor.execute(GETUSER, [username])
         user = cursor.fetchone()
     except:
         logging.error(' Failed to query accounts database.')
-        return None
+
     return user
 
 

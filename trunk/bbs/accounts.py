@@ -5,7 +5,7 @@ import hashlib
 
 from sonzoserv.telnet import TelnetProtocol
 from bbs.board import parser, BBSUSERS, splash, sendClient
-from bbs.menu import getFullMenu, getMiniMenu
+from bbs.menu import getFullMenu, getMiniMenu, getLoginScreen
 from bbs.sql.accts import getUser, saveUser
 
 # Global database connection for Accounts module
@@ -31,8 +31,9 @@ class Account(TelnetProtocol):
         self._attr['globals'] = 1
         self._attr['active'] = 0
         self._attr['menu'] = 'MAINMENU'
-        self._attr['status'] = None
-        self.door = None
+        self._attr['state'] = 'CONNECTING'
+        self._attr['ansi'] = self._ansi
+        self._attr['door'] = None
         self.parser = parser
 
 
@@ -41,6 +42,8 @@ class Account(TelnetProtocol):
         Set account attribute to value.
         """
         if attr in self._attr.keys():
+            if attr == 'ansi':
+                self._ansi = value
             self._attr[attr] = value
         else:
             logging.error( "Failed to assign '{}' to attribute '{}'".format(value, attr))
@@ -56,12 +59,17 @@ class Account(TelnetProtocol):
             return None
 
 
-    def load(self):
+    def loadUser(self):
         #TODO: Make sure authentication happens before this.
         result = getUser(self._attr['username'])
         if result:
             for attr in result.keys():
+                # Don't load ansi setting from the database if empty, 
+                # keep negotiated ansi setting.
+                if attr == 'ansi' and result[attr] == None:
+                    continue
                 self.setAttr(attr, result[attr])
+            self.setAttr('state', 'AUTHENTICATED')
         else:
             logging.error(" User '{}' not found in account database.".format(self._attr['username']))
 
@@ -71,11 +79,10 @@ class Account(TelnetProtocol):
         onConnect()
         """
         # Remove this once login code is complete
-        self._attr['username'] = 'sysop'
+        self.setAttr('username', 'sysop')
         BBSUSERS.append(self)
         splash(self)
-        sendClient(self, getFullMenu(self), colorcodes=True)
-        self.load()
+        sendClient(self, getLoginScreen(), colorcodes=self.inANSIMode())    
 
 
     def onDisconnect(self):

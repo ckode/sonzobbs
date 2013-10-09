@@ -831,16 +831,18 @@ class TelnetProtocol(object):
         logging.debug("Requesting to disable echo for passwords")
         self._iac_will(ECHO)
         self._note_reply_pending(ECHO, True)
+        self._telnet_echo_password = True
 
 
     def password_mode_off(self):
         """
         Request echo on since we aren't entering a password at this time.
         """
-        logging.debug("Request to enable echo since not entering a password at this time.".format(self.address))
+        logging.debug("Request to enable echo since not entering a password at this time.")
         self._iac_wont(ECHO)
         self._note_reply_pending(ECHO, True)
-
+        self._telnet_echo_password = False
+        
 
     def _request_naws(self):
         """
@@ -898,8 +900,6 @@ class TelnetProtocol(object):
         if byte == chr(13):
             return
 
-        if self._telnet_echo_password:
-            self._echo_buffer += '*'
         # If  backspace or delete, delete last character in echo as long as there is
         # a typed character to delete.
         if byte is chr(8) or byte is chr(127):
@@ -909,7 +909,10 @@ class TelnetProtocol(object):
             self._echo_buffer += "{}{}".format(chr(8), "{}[0K".format(chr(27)))
         else:
             self._echo_buffer_count = self._echo_buffer_count + 1
-            self._echo_buffer += byte
+            if self._telnet_echo_password:
+                self._echo_buffer += '*'
+            else:
+                self._echo_buffer += byte
 
 
     def _iac_sniffer(self, byte):

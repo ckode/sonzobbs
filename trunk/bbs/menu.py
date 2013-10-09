@@ -206,7 +206,23 @@ def isValidMenuSelection(client, selection):
 
     return False
 
+def getLoginScreen():
+    screen = """\n\n       ^MWELCOME to SonzoBBS!
 
+^GIf you already have a User-ID on this
+system, type it in and press ENTER.
+Otherwise type "^Cnew^G": ^w"""
+
+    return screen
+    
+ 
+def getPasswordScreen():
+    """
+    Return text screen for getting password,
+    """
+    return "^GEnter your password: ^w"
+
+    
 def verifyMenuDatabase():
     """
     Verify that a menu database exists, if not
