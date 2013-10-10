@@ -6,7 +6,7 @@ import hashlib
 from sonzoserv.telnet import TelnetProtocol
 from bbs.board import parser, BBSUSERS, splash, sendClient
 from bbs.menu import getFullMenu, getMiniMenu, getLoginScreen
-from bbs.sql.accts import getUser, saveUser
+from bbs.sql.accts import getUserFromDatabase, saveUser, addUserToDatabase
 
 # Global database connection for Accounts module
 conn = None
@@ -28,12 +28,14 @@ class Account(TelnetProtocol):
         self._attr['passwd'] = ''
         self._attr['firstname'] = ''
         self._attr['lastname'] = ''
+        self._attr['email'] = ''
         self._attr['globals'] = 1
         self._attr['active'] = 0
         self._attr['menu'] = 'MAINMENU'
         self._attr['state'] = 'CONNECTING'
         self._attr['ansi'] = self._ansi
         self._attr['door'] = None
+        self._attr['sec_code'] = ''
         self.parser = parser
 
 
@@ -61,7 +63,7 @@ class Account(TelnetProtocol):
 
     def loadUser(self):
         #TODO: Make sure authentication happens before this.
-        result = getUser(self._attr['username'])
+        result = getUserFromDatabase(self._attr['username'])
         if result:
             for attr in result.keys():
                 # Don't load ansi setting from the database if empty, 
@@ -78,8 +80,6 @@ class Account(TelnetProtocol):
         """
         onConnect()
         """
-        # Remove this once login code is complete
-        self.setAttr('username', 'sysop')
         BBSUSERS.append(self)
         splash(self)
         sendClient(self, getLoginScreen(), colorcodes=self.inANSIMode())    
@@ -119,7 +119,7 @@ class Account(TelnetProtocol):
         Change or set the user's password.
         """
         hasher = hashlib.sha512()
-        hasher.update(passwd.encode(passwd))
+        hasher.update(passwd.encode('utf-8'))
         self._attr['passwd'] = hasher.hexdigest()
         self.save()
 
@@ -150,6 +150,7 @@ class Account(TelnetProtocol):
                     self._attr['passwd'],
                     self._attr['firstname'],
                     self._attr['lastname'],
+                    self._attr['email'],
                     self._attr['globals'],
                     self._attr['ansi'],
                     self._attr['active']
@@ -161,7 +162,7 @@ class Account(TelnetProtocol):
         Authenticate user against user database.
         """
         hasher = hashlib.sha512()
-        hasher.update(passwd.encode(passwd))
+        hasher.update(passwd.encode('utf-8'))
         # return authQuery(username,
         passwd = hasher.hexdigest()
         

@@ -9,9 +9,10 @@ cursor = None
 
 # Predefined database queries.
 AUTHQUERY = "SELECT COUNT(*) as count FROM accounts WHERE username=? and passwd=?"
-GETUSER = "SELECT * FROM accounts WHERE username=?"
-UPDATEUSER = "UPDATE accounts SET username=?, passwd=?, firstname=?, lastname=?, globals=?, ansi=?, active=? WHERE username=?"
-ADDUSER = "INSERT INTO accounts (username, passwd, firstname, lastname, globals, ansi, acctive) values (?, ?, ?, ?, ?, ?, ?)"
+GETUSER = "SELECT * FROM accounts WHERE username=? COLLATE NOCASE"
+UPDATEUSER = "UPDATE accounts SET username=?, passwd=?, firstname=?, lastname=?, email=?, globals=?, ansi=?, active=? WHERE username=?"
+ADDUSER = "INSERT INTO accounts (username, passwd, firstname, lastname, email, globals, ansi, active) values (?, ?, ?, ?, ?, ?, ?, ?)"
+GETALL = "SELECT * FROM accounts"
 
 # Decorators
 #========================================
@@ -41,11 +42,11 @@ def authUser(client, passwd):
     global conn
     global cursor
     result = None
-    user = getUser(client)
+    user = getUserFromDatabase(client)
     try:
         hasher = hashlib.sha512()
         hasher.update(passwd.encode('utf-8'))
-        cursor.execute(AUTHQUERY, (client, hasher.hexdigest()))
+        cursor.execute(AUTHQUERY, (user['username'], hasher.hexdigest()))
         result = cursor.fetchone()
     except:
         logging.error(" Error authenticating user {}".format(client))
@@ -60,10 +61,11 @@ def userExist(username):
     """
     global conn
     global cursor
+    global GETUSER
     result = None
     
     try:
-        cursor.execute(GETUSER, (client.getAttr('username')))
+        cursor.execute(GETUSER % [client.getAttr('username')])
         result = cursor.fetchone()
     except:
         pass
@@ -72,19 +74,19 @@ def userExist(username):
 
 
 @inititalizeDatabase
-def getUser(username):
+def getUserFromDatabase(username):
     """
     Get user info.
     """
     global cursor
     global conn
+    global GETUSER
     user = None
     try:
         cursor.execute(GETUSER, [username])
         user = cursor.fetchone()
     except:
         logging.error(' Failed to query accounts database.')
-
     return user
 
 
@@ -112,10 +114,9 @@ def addUserToDatabase(userdata):
     global cursor
     global ADDUSER
     # See if the user already exist first.
-    if getUser(userdata[0]):
-        logging.error(" User '{}' already exists.".format(userdata[0]))
+    if getUserFromDatabase(userdata[0]):
+        logging.error(" Unable to add user, '{}' already exists.".format(userdata[0]))
         return False
-
     try:
         cursor.execute(ADDUSER, userdata)
         conn.commit()

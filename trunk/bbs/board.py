@@ -6,8 +6,10 @@ import string
 from bbs.menu import getMenuOptions, menuOptionSelected, MenuOptionException
 from bbs.menu import getMiniMenu, getFullMenu, verifyMenuDatabase, getLoginScreen
 from bbs.menu import getPasswordScreen
-from bbs.sql.accts import authUser, getUser
+from bbs.sql.accts import authUser, getUserFromDatabase
 from bbs.doors import DoorEngine, getDoorConfigs
+
+PASSWDSIZE = 6
 
 BBSUSERS = []
 BBS = None
@@ -182,16 +184,23 @@ def login_parser(client, input):
     """
     state = client.getAttr('state')
 
+    if state.startswith('SIGNUP'):
+        signup_parser(client, state, input)
+        return
+
     if state == 'CONNECTING':
         if input == "":
             sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
             return
         elif input.lower() == 'new':
-            print("NEW DUDE!")
+            client.setAttr('state', 'SIGNUP-GETNAME')
+            sendClient(client, "\n^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
             return
         elif len(input) > 1:
-            if getUser(input):
+            user = getUserFromDatabase(input)
+            if user:
                 client.setAttr('state', 'LOGIN')
+                client.setAttr('username', user['username'])
                 client.password_mode_on()
                 sendClient(client, getPasswordScreen(), colorcodes=client.inANSIMode())
             else:
@@ -211,9 +220,66 @@ def login_parser(client, input):
             else:
                 sendClient(client, "^MInvalid login, please try again.\n", colorcodes=client.inANSIMode())
                 client.setAttr('state', 'CONNECTING')
+                client.setAttr('username', '')
                 sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
 
 
+def signup_parser(client, state, input):
+    """
+    Parser user input for newly joining members.
+    """
+    global PASSWDSIZE
+    
+    if state == 'SIGNUP-GETNAME':
+        if input == "" or len(input) < 2 or getUserFromDatabase(input):
+            sendClient(client, "\n^GSorry, that name is already in use, or invalid. Please try a gain.", colorcodes=client.inANSIMode())
+            sendClient(client, "\n^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
+            return
+        else:
+            client.setAttr('state', 'SIGNUP-VERIFYNAME')
+            client.setAttr('username', input)
+            sendClient(client, "\n^GExample:  ^g{} says, ^wHello, how are you?\n".format(input), colorcodes=client.inANSIMode())
+            sendClient(client, "\n^GIs this okay?  (y/n): ", colorcodes=client.inANSIMode())
+            return
+    elif state == 'SIGNUP-VERIFYNAME':
+        if input.lower() == 'y' or input.lower() == 'yes':
+            client.setAttr('state', 'SIGNUP-PASSWORD')
+            sendClient(client, "\nPlease enter a password you would like to use: ", colorcodes=client.inANSIMode())
+            client.password_mode_on()
+            return
+        else:
+            client.setAttr('state', 'SIGNUP-GETNAME')
+            sendClient(client, "\n^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
+            return
+    elif state == 'SIGNUP-PASSWORD':
+        if len(input) > PASSWDSIZE:
+            client.tmppass = input
+            client.setAttr('state', 'SIGNUP-VERIFYPASSWORD')
+            sendClient(client, "\n^GPlease verify your password: ", colorcodes=client.inANSIMode())
+            return
+        else:
+            sendClient(client, "\n^GYour password must consist of at least {} characters.".format(PASSWDSIZE + 1), colorcodes=client.inANSIMode())
+            sendClient(client, "\nPlease enter a password you would like to use: ", colorcodes=client.inANSIMode())
+            return
+    elif state == 'SIGNUP-VERIFYPASSWORD':
+        if input == client.tmppass:
+            client.password_mode_off()
+            import hashlib
+            hasher = hashlib.sha512()
+            hasher.update(input.encode('utf-8'))
+            client.setAttr('passwd', hasher.hexdigest())
+            client.setAttr('state', 'AUTHENTICATED')
+            # Remove this once completed signin process.
+            client.setAttr('firstname', 'Jon')
+            client.setAttr('lastname', 'Doe')
+            client.setAttr('email', 'here@there.com')
+            client.setAttr('ansi', client._ansi)
+            client.createUser()
+            sendClient(client, "\n^MWelcome!", colorcodes=client.inANSIMode())
+            return
+
+            
+        
 def splash(client):
     """
     Do splash screen on initial login.
