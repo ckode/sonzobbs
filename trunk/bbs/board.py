@@ -141,7 +141,7 @@ def parser(client, line):
     
     # Need to look for global messages before this.
     if client.getAttr('door'):
-        BBS.doors.sendDoorMessage(client.getAttr('username'), client.gettAttr('door'), line)
+        BBS.doors.sendDoorMessage(client.getAttr('username'), client.getAttr('door'), line)
         return
 
 
@@ -238,24 +238,24 @@ def signup_parser(client, state, input):
         else:
             client.setAttr('state', 'SIGNUP-VERIFYNAME')
             client.setAttr('username', input)
-            sendClient(client, "\n^GExample:  ^g{} says, ^wHello, how are you?\n".format(input), colorcodes=client.inANSIMode())
+            sendClient(client, "\n^GExample: ^g{} says, ^wHello, how are you?".format(input), colorcodes=client.inANSIMode())
             sendClient(client, "\n^GIs this okay?  (y/n): ", colorcodes=client.inANSIMode())
             return
     elif state == 'SIGNUP-VERIFYNAME':
         if input.lower() == 'y' or input.lower() == 'yes':
             client.setAttr('state', 'SIGNUP-PASSWORD')
-            sendClient(client, "\nPlease enter a password you would like to use: ", colorcodes=client.inANSIMode())
+            sendClient(client, "Please enter a password you would like to use: ", colorcodes=client.inANSIMode())
             client.password_mode_on()
             return
         else:
             client.setAttr('state', 'SIGNUP-GETNAME')
-            sendClient(client, "\n^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
+            sendClient(client, "^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
             return
     elif state == 'SIGNUP-PASSWORD':
         if len(input) > PASSWDSIZE:
             client.tmppass = input
             client.setAttr('state', 'SIGNUP-VERIFYPASSWORD')
-            sendClient(client, "\n^GPlease verify your password: ", colorcodes=client.inANSIMode())
+            sendClient(client, "^GPlease verify your password: ", colorcodes=client.inANSIMode())
             return
         else:
             sendClient(client, "\n^GYour password must consist of at least {} characters.".format(PASSWDSIZE + 1), colorcodes=client.inANSIMode())
@@ -277,8 +277,13 @@ def signup_parser(client, state, input):
             client.createUser()
             sendClient(client, "\n^MWelcome!", colorcodes=client.inANSIMode())
             return
-
-            
+        else:
+            client.tmppass = ''
+            client.setAttr('state', 'SIGNUP-PASSWORD')
+            sendClient(client, "\nYou password does not match, please try again.", colorcodes=client.inANSIMode())
+            sendClient(client, "\nPlease enter a password you would like to use: ", colorcodes=client.inANSIMode())
+            return
+        
         
 def splash(client):
     """

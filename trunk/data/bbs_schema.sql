@@ -21,9 +21,7 @@ CREATE TABLE bbsroles (
 
 CREATE TABLE access_groups (
     id            INTEGER PRIMARY KEY,
-	name          TEXT NOT NULL,
-	account       INTEGER NOT NULL,
-	FOREIGN KEY(account) REFERENCES accounts(id)
+	name          TEXT NOT NULL
 );
 
 CREATE TABLE group_perms (
@@ -67,4 +65,9 @@ INSERT INTO accounts (username,
 				      1
 );
 
+INSERT INTO access_groups (name) VALUES ('SYSOP');
+INSERT INTO access_groups (name) VALUES ('DEMO');
+INSERT INTO access_groups (name) VALUES ('USER');
+
+INSERT INTO account_perms (account, access_group) VALUES (1, 1);
 INSERT INTO account_notes (account, note) VALUES (1, "Test note");

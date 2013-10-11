@@ -240,11 +240,7 @@ class DoorEngine:
         """
         Connect user to a door.
         """
-        print("{}".format(self.doors.keys()))
-        print(self.doors[door])
         if self.doors[door]:
-            print("DOOR STATUS: {}".format(self.doors[door]))
-            print("Connected: {}".format(self.doors[door].connected))
             if self.doors[door].connected:
                 self.doors[door].connectUser(user)
                 return True

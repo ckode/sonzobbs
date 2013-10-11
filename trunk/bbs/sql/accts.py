@@ -12,6 +12,7 @@ AUTHQUERY = "SELECT COUNT(*) as count FROM accounts WHERE username=? and passwd=
 GETUSER = "SELECT * FROM accounts WHERE username=? COLLATE NOCASE"
 UPDATEUSER = "UPDATE accounts SET username=?, passwd=?, firstname=?, lastname=?, email=?, globals=?, ansi=?, active=? WHERE username=?"
 ADDUSER = "INSERT INTO accounts (username, passwd, firstname, lastname, email, globals, ansi, active) values (?, ?, ?, ?, ?, ?, ?, ?)"
+ADDUSERTOGROUP = "INSERT INTO account_perms (account, access_group) VALUES (?, ?)"
 GETALL = "SELECT * FROM accounts"
 
 # Decorators
@@ -119,6 +120,11 @@ def addUserToDatabase(userdata):
         return False
     try:
         cursor.execute(ADDUSER, userdata)
+        conn.commit()
+        # Add user to default group 
+        # TODO: Make default group defineable in BBS config
+        user = getUserFromDatabase(userdata[0])
+        cursor.execute(ADDUSERTOGROUP, [user['id'], 2])
         conn.commit()
     except:
         logging.error(" Failed to add user ({}) in database.".format(userdata[0]))
