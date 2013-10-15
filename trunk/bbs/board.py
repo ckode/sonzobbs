@@ -195,6 +195,7 @@ def login_parser(client, input):
         elif input.lower() == 'new':
             client.setAttr('state', 'SIGNUP-GETNAME')
             sendClient(client, "\n^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
+            client.uname_attempt = 0
             return
         elif len(input) > 1:
             user = getUserFromDatabase(input)
@@ -234,6 +235,11 @@ def signup_parser(client, state, input):
         if input == "" or len(input) < 2 or getUserFromDatabase(input):
             sendClient(client, "\n^GSorry, that name is already in use, or invalid. Please try a gain.", colorcodes=client.inANSIMode())
             sendClient(client, "\n^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
+            client.uname_attempt = client.uname_attempt + 1
+            if client.uname_attempt == 3:
+                client.setAttr('state', 'CONNECTING')
+                splash(client)
+                sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())                    
             return
         else:
             client.setAttr('state', 'SIGNUP-VERIFYNAME')
@@ -243,6 +249,7 @@ def signup_parser(client, state, input):
             return
     elif state == 'SIGNUP-VERIFYNAME':
         if input.lower() == 'y' or input.lower() == 'yes':
+            client.pwd_attempt = 0
             client.setAttr('state', 'SIGNUP-PASSWORD')
             sendClient(client, "Please enter a password you would like to use: ", colorcodes=client.inANSIMode())
             client.password_mode_on()
@@ -252,6 +259,12 @@ def signup_parser(client, state, input):
             sendClient(client, "^GPlease enter a username you would like to use: ", colorcodes=client.inANSIMode())
             return
     elif state == 'SIGNUP-PASSWORD':
+        client.pwd_attempt = client.pwd_attempt + 1
+        if client.pwd_attempt == 3:
+            client.setAttr('state', 'CONNECTING')
+            splash(client)
+            sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())                
+            return
         if len(input) > PASSWDSIZE:
             client.tmppass = input
             client.setAttr('state', 'SIGNUP-VERIFYPASSWORD')
@@ -278,10 +291,17 @@ def signup_parser(client, state, input):
             sendClient(client, "\n^MWelcome!", colorcodes=client.inANSIMode())
             return
         else:
+            client.pwd_attempt = client.pwd_attempt + 1
+            if client.pwd_attempt == 4:
+                client.setAttr('state', 'CONNECTING')
+                splash(client)
+                sendClient(client, getLoginScreen(), colorcodes=client.inANSIMode())
+                return
             client.tmppass = ''
             client.setAttr('state', 'SIGNUP-PASSWORD')
             sendClient(client, "\nYou password does not match, please try again.", colorcodes=client.inANSIMode())
             sendClient(client, "\nPlease enter a password you would like to use: ", colorcodes=client.inANSIMode())
+            client.pwd_attempt = 0
             return
         
         
