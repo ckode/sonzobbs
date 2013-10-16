@@ -4,7 +4,8 @@ import os
 import hashlib
 
 from sonzoserv.telnet import TelnetProtocol
-from bbs.board import parser, BBSUSERS, splash, sendClient
+from bbs.board import BBSUSERS, splash, sendClient
+from bbs.parsers import parser
 from bbs.menu import getFullMenu, getMiniMenu, getLoginScreen
 from bbs.sql.accts import getUserFromDatabase, saveUser, addUserToDatabase
 
